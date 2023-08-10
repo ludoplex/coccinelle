@@ -5,10 +5,7 @@ from sys import version_info
 # http://stackoverflow.com/questions/4843173/how-to-check-if-type-of-a-variable-is-string-in-python
 PY3 = version_info[0] == 3
 
-if PY3:
-    string_types = str
-else:
-    string_types = basestring
+string_types = str if PY3 else basestring
 
 def string_check(value):
     return isinstance(value, string_types)
@@ -36,7 +33,7 @@ class Iteration:
             raise TypeError(
                 "Iteration.add_virtual_identifier expects string arguments")
         if ident in self.__virtual_identifiers:
-            raise ValueError("multiple values specified for {}".format(ident))
+            raise ValueError(f"multiple values specified for {ident}")
         self.__virtual_identifiers[ident] = value
 
     def set_extend_virtual_ids(self, value):

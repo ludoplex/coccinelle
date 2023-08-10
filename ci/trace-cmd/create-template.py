@@ -9,13 +9,8 @@ def get_cloudstack_object(response, kind, index):
         if isinstance(response, list):
             # fetch_list directly returns the list
             return response[index]
-        else:
-            objects = response[kind]
-            if isinstance(objects, list):
-                return objects[index]
-            else:
-                # fetch_result directly returns the object
-                return objects
+        objects = response[kind]
+        return objects[index] if isinstance(objects, list) else objects
     except KeyError:
         raise CannotExtract(f"Cannot extract {kind}[{index}] from {response}")
 

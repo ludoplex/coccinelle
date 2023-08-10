@@ -47,4 +47,6 @@ class Console(Output):
                 self.include_match(include)
                 if include:
                         for variable, message in messages:
-                                print("%s:%s:%s: %s - %s" % (variable.location.file, variable.location.line, variable.location.column, message, variable))
+                                print(
+                                    f"{variable.location.file}:{variable.location.line}:{variable.location.column}: {message} - {variable}"
+                                )
