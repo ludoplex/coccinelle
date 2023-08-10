@@ -122,9 +122,7 @@ class Analysis(object):
         generator = firehose.model.Generator(name=gen_name,
                                              version=gen_version)
         metadata = firehose.model.Metadata(generator, sut, file_, stats)
-        analysis = firehose.model.Analysis(metadata, [])
-        
-        return analysis
+        return firehose.model.Analysis(metadata, [])
 
     def __build_issue(self,
                       location, message,
@@ -147,21 +145,26 @@ class Analysis(object):
         """
         location = self.__coccilocation_to_firehoselocation(location[0])
         message = firehose.model.Message(message)
-        
+
         if notes is not None:
             notes = firehose.model.Notes(notes)
-        
+
         if customfields is not None:
             customfields = firehose.model.CustomFields(customfields)
-        
+
         # TODO: trace -> how to pass a trace from spatch to xml_firehose
         trace = None
-        
-        issue = firehose.model.Issue(cwe, testid, location, message, notes,
-                                     trace, severity=severity,
-                                     customfields=customfields)
-        
-        return issue
+
+        return firehose.model.Issue(
+            cwe,
+            testid,
+            location,
+            message,
+            notes,
+            trace,
+            severity=severity,
+            customfields=customfields,
+        )
 
     def __coccilocation_to_firehoselocation(self, cocciloc):
         """Converts a Coccinelle Location object to a Firehose one.

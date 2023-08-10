@@ -60,9 +60,7 @@ class Req:
                                    close_fds=True, universal_newlines=True)
         stdout = process.communicate()[0]
         process.wait()
-        if process.returncode == 0:
-            return True
-        return False
+        return process.returncode == 0
     def req_get_prog_version(self, program, version_query, version_pos):
         '''
         Suppose you have a binary that outputs:
@@ -110,10 +108,7 @@ class Req:
             if ("." in rel_specs['EXTRAVERSION'] or
                     "rc" in rel_specs['EXTRAVERSION']):
                 rc = rel_specs['EXTRAVERSION'].lstrip("-rc")
-                if (rc == ""):
-                    rc = 0
-                else:
-                    rc = int(rc) - (Req.MAX_RC + 1)
+                rc = 0 if (rc == "") else int(rc) - (Req.MAX_RC + 1)
                 extra = int(rc)
             else:
                 extra = int(rel_specs['EXTRAVERSION']) + 10
@@ -125,18 +120,16 @@ class Req:
 
         if rel_specs['RELMOD_UPDATE'] != '':
             mod = rel_specs['RELMOD_UPDATE']
-            if (mod == ""):
-                mod = 0
-            else:
-                mod = int(mod)
-            relmod = int(mod)
+            mod = 0 if (mod == "") else int(mod)
+            relmod = mod
 
-        weight = (int(rel_specs['VERSION'])    << 32) + \
-                 (int(rel_specs['PATCHLEVEL']) << 16) + \
-                 (sublevel   		       << 8 ) + \
-                 (extra * 60) + (relmod * 2)
-
-        return weight
+        return (
+            (int(rel_specs['VERSION']) << 32)
+            + (int(rel_specs['PATCHLEVEL']) << 16)
+            + (sublevel << 8)
+            + (extra * 60)
+            + (relmod * 2)
+        )
     def req_get_rel_spec(self, rel):
         if "rc" in rel:
             m = re.match(r"v*(?P<VERSION>\d+)\.+"
@@ -152,15 +145,10 @@ class Req:
                          "(?P<EXTRAVERSION>\w*)\-*"
                          "(?P<RELMOD_UPDATE>\d*)[-]*",
                          rel)
-        if not m:
-            return m
-        rel_specs = m.groupdict()
-        return rel_specs
+        return m if not m else m.groupdict()
     def compute_rel_weight(self, rel):
         rel_specs = self.req_get_rel_spec(rel)
-        if not rel_specs:
-            return 0
-        return self.__compute_rel_weight(rel_specs)
+        return 0 if not rel_specs else self.__compute_rel_weight(rel_specs)
     def linux_version_cmp(self, version_req, version):
         '''
         If the program follows the linux version style scheme you can
@@ -173,9 +161,7 @@ class Req:
             sys.stdout.write("You have program weight: %s\n" % weight_has)
             sys.stdout.write("Required program weight: %s\n" % weight_req)
 
-        if weight_has < weight_req:
-            return -1
-        return 0
+        return -1 if weight_has < weight_req else 0
     def require_version(self, program, version_query, version_req, version_pos, version_cmp):
         '''
         If you have a program version requirement you can specify it here,
@@ -241,9 +227,7 @@ def git_rev_parse(tree=None, extra_args=None):
                                close_fds=True, universal_newlines=True, cwd=tree)
     stdout = process.communicate()[0]
     process.wait()
-    if process.returncode != 0:
-        return None
-    return stdout.split('\n', 1)[0]
+    return None if process.returncode != 0 else stdout.split('\n', 1)[0]
 
 def gitname(path=None):
     path = os.path.abspath(path)
@@ -255,9 +239,7 @@ def gitname(path=None):
                                close_fds=True, universal_newlines=True, cwd=work_dir)
     stdout = process.communicate()[0]
     process.wait()
-    if process.returncode != 0:
-        return None
-    return stdout.split('\n', 1)[0]
+    return None if process.returncode != 0 else stdout.split('\n', 1)[0]
 
 def git_add(path, tree=None):
     process = subprocess.Popen(['git', 'add', '--ignore-removal', path],
@@ -328,7 +310,7 @@ class tempdir(object):
 
     def __exit__(self, type, value, traceback):
         if self.nodelete:
-            print('not deleting directory %s!' % self._name)
+            print(f'not deleting directory {self._name}!')
         else:
             shutil.rmtree(self._name)
 
@@ -338,9 +320,7 @@ def apply_patches(args, patch_src, target_dir, logwrite=lambda x:None):
     """
     patches = []
     for root, dirs, files in os.walk(patch_src):
-        for f in files:
-            if f.endswith('.patch'):
-                    patches.append(os.path.join(root, f))
+        patches.extend(os.path.join(root, f) for f in files if f.endswith('.patch'))
     patches.sort()
     prefix_len = len(patch_src) + 1
     for pfile in patches:
@@ -359,9 +339,9 @@ def apply_patches(args, patch_src, target_dir, logwrite=lambda x:None):
             output = output[:-1]
         if process.returncode != 0:
             if not args.verbose:
-                logwrite("Failed to apply changes from %s" % print_name)
+                logwrite(f"Failed to apply changes from {print_name}")
                 for line in output:
-                    logwrite('> %s' % line)
+                    logwrite(f'> {line}')
             raise Exception('Patch failed')
 
         # remove orig/rej files that patch sometimes creates
@@ -369,7 +349,7 @@ def apply_patches(args, patch_src, target_dir, logwrite=lambda x:None):
             for f in files:
                 if f[-5:] == '.orig' or f[-4:] == '.rej':
                     os.unlink(os.path.join(root, f))
-        git_commit_all(tree=target_dir, message="apply patch %s" % (print_name))
+        git_commit_all(tree=target_dir, message=f"apply patch {print_name}")
 
 class CoccinelleError(Exception):
     pass
@@ -380,20 +360,17 @@ class ExecutionErrorThread(CoccinelleError):
         logwrite("Failed to apply changes from %s\n" % print_name)
 
         logwrite("Specific log output from change that failed using %s\n" % print_name)
-        tf = open(fn, 'r')
-        for line in tf.read():
-            logwrite(line)
-        tf.close()
-
-        logwrite("Full log using %s\n" % print_name)
-        for num in range(threads):
-            fn = os.path.join(t, '.tmp_spatch_worker.' + str(num))
-            if (not os.path.isfile(fn)):
-                continue
-            tf = open(fn, 'r')
+        with open(fn, 'r') as tf:
             for line in tf.read():
                 logwrite(line)
-            tf.close()
+        logwrite("Full log using %s\n" % print_name)
+        for num in range(threads):
+            fn = os.path.join(t, f'.tmp_spatch_worker.{str(num)}')
+            if (not os.path.isfile(fn)):
+                continue
+            with open(fn, 'r') as tf:
+                for line in tf.read():
+                    logwrite(line)
             os.unlink(fn)
 
 class ExecutionErrorCocci(CoccinelleError):
@@ -412,11 +389,7 @@ def spatch(cocci_file, outdir, logwrite, num_jobs, print_name, extra_args=[],
         sys.exit(1)
 
     num_cpus = cpu_count()
-    if num_jobs:
-        threads = int(num_jobs)
-    else:
-        threads = num_cpus
-
+    threads = int(num_jobs) if num_jobs else num_cpus
     cmd = ['spatch',
             '--sp-file', cocci_file,
             '--in-place',
@@ -458,26 +431,22 @@ def spatch_old(cocci_file, outdir,
 
     cmd.extend(extra_args)
 
-    fn = os.path.join(temp_dir, '.tmp_spatch_worker.' + str(thread_id))
-    outfile = open(fn, 'w')
-    if verbose:
-        logwrite("%s\n" % " ".join(cmd))
+    fn = os.path.join(temp_dir, f'.tmp_spatch_worker.{str(thread_id)}')
+    with open(fn, 'w') as outfile:
+        if verbose:
+            logwrite("%s\n" % " ".join(cmd))
 
-    sprocess = subprocess.Popen(cmd,
-                               stdout=outfile, stderr=subprocess.STDOUT,
-                               close_fds=True, universal_newlines=True)
-    sprocess.wait()
-    outfile.close()
+        sprocess = subprocess.Popen(cmd,
+                                   stdout=outfile, stderr=subprocess.STDOUT,
+                                   close_fds=True, universal_newlines=True)
+        sprocess.wait()
     ret_q.put((sprocess.returncode, fn))
 
 def threaded_spatch(cocci_file, outdir, logwrite, num_jobs,
                     print_name, extra_args=[], verbose=True):
     num_cpus = cpu_count()
-    if num_jobs:
-        threads = int(num_jobs)
-    else:
-        threads = num_cpus
-    jobs = list()
+    threads = int(num_jobs) if num_jobs else num_cpus
+    jobs = []
     output = ""
     ret_q = Queue()
     with tempdir() as t:
@@ -489,19 +458,18 @@ def threaded_spatch(cocci_file, outdir, logwrite, num_jobs,
         for p in jobs:
             p.start()
 
-        for num in range(threads):
+        for _ in range(threads):
             ret, fn = ret_q.get()
             if ret != 0:
                 raise ExecutionErrorThread(ret, fn, cocci_file, threads, t,
                                            logwrite, print_name)
-        for job in jobs:
+        for _ in jobs:
             p.join()
 
         for num in range(threads):
-            fn = os.path.join(t, '.tmp_spatch_worker.' + str(num))
-            tf = open(fn, 'r')
-            output = output + tf.read()
-            tf.close()
+            fn = os.path.join(t, f'.tmp_spatch_worker.{str(num)}')
+            with open(fn, 'r') as tf:
+                output = output + tf.read()
             os.unlink(fn)
         return output
 
